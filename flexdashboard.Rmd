@@ -1,0 +1,85 @@
+---
+title: "Children in Michigan Living in poverty, by County"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+  
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidycensus)
+library(tidyverse)
+options(tigris_use_cache = TRUE)
+library(ggplot2)
+library(sf)
+library(tmap)
+library(viridis)
+library(devtools)
+library(leaflet)
+library(stringr)
+library(DT)
+
+
+census_api_key("2cb24b255d5b7f9ce4bc9f2ea6d0be84276786ff")
+
+# population under 6 in poverty
+mi_child_pov <- get_acs(geography = "county",
+                        variables = child_pov <- "B17020_003",
+                         state = "MI",
+                        summary_var = "B01003_001",
+                         geometry = TRUE)
+
+
+```
+
+Row
+------------------------------------------------------------------------------------
+
+### Child Poverty by County
+
+```{r}
+
+# as a percent of county population
+pal_poverty <- colorNumeric(palette = "plasma",
+                           domain = mi_child_pov$percent_pop)
+
+mi_child_pov %>%
+  mutate(percent_pop = 100* (estimate / summary_est)) %>%
+    st_transform(crs = "+init=epsg:4326") %>%
+    leaflet(width = "100%") %>%
+    addProviderTiles(provider = "CartoDB.Positron") %>%
+    addPolygons(popup = ~ str_extract(NAME, "^([^,]*)"),
+                stroke = FALSE,
+                smoothFactor = 0,
+                fillOpacity = 0.7,
+                color = ~ pal_poverty(percent_pop)) %>%
+    addLegend("bottomright", 
+              pal = pal_poverty, 
+              values = ~ percent_pop,
+              title = "Child Poverty",
+              opacity = 1)
+```
+
+### Child Poverty in Michigan
+
+#### The rate of children living in poverty continues to rise in Michigan. As the state ranks 34th in the nation and worst in the region, poverty, especially the impacts of poverty on children, needs to policy priority. 
+
+#### The map to the left represents the percent of children under the age of 6 living in poverty by county in the state.
+
+##### _All data comes from the American Community Survey (2012-2016)._  
+##### _Percent of children living in poverty was calculated by dividing the estimate of children under 6 living in poverty by the county population._
+
+```{r}
+
+```
+
+Row 
+------------------------------------------------------------------------------------
+### Data Table
+
+```{r}
+DT::datatable(mi_child_pov, options = list(columnDefs = list(list(visible = FALSE, targets= c(3,5,7,8)))),
+              colnames = c("GEOID", "County", "Number of Children in Poverty", "", "Population of County")) 
+```
+
